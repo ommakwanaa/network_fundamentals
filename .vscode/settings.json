@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "HOSTDET.C": "cpp",
+        "unistd.h": "c"
+    }
+}

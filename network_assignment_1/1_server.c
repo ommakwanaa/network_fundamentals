@@ -1,4 +1,3 @@
-
 // 1.Write a udp client server program,client writing messages to server program and server
 // return back the same toggled msg to client
 
@@ -10,7 +9,7 @@
 #include <stdlib.h>
 
 #define PORT 8000
-#define MAXSZ 100
+#define MAXLINE 1024
 
 char *toggle(char str[])
 {
@@ -27,48 +26,47 @@ char *toggle(char str[])
 
 int main()
 {
-    int sockfd, newsockfd, n;
-    char msg[MAXSZ];
-    int clientAddrLen;
-    socklen_t client;
-    struct sockaddr_in cliaddr, servaddr;
-    char buf[10000];
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    int sockfd;
+    char buffer[MAXLINE];
+    char *hello = "Hello from server";
+    struct sockaddr_in servaddr, cliaddr;
 
-    int opt = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
+    // Creating socket file descriptor
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
     {
-        perror("setsocket");
+        perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
 
     memset(&servaddr, 0, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    memset(&cliaddr, 0, sizeof(cliaddr));
+
+    // Filling server information
+    servaddr.sin_family = AF_INET; // IPv4
+    servaddr.sin_addr.s_addr = INADDR_ANY;
     servaddr.sin_port = htons(PORT);
 
-    bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-    printf("socket bound to port 8000\n");
-    listen(sockfd, 5);
-
+    // Bind the socket with the server address
+    if (bind(sockfd, (const struct sockaddr *)&servaddr,
+             sizeof(servaddr)) < 0)
+    {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
     while (1)
     {
-        clientAddrLen = sizeof(cliaddr);
-        newsockfd = accept(sockfd, (struct sockaddr *)&cliaddr, &clientAddrLen);
-        while (1)
-        {
-            int n;
-            n = recv(newsockfd, msg, MAXSZ, 0);
-            if (n == 0)
-            {
-                close(newsockfd);
-                break;
-            }
-            msg[n] = 0;
-            printf("message recieved from the client: %s\n", msg);
-            char *toggled = toggle(msg);
-            send(newsockfd, msg, n, 0);
-        }
+
+        int len, n;
+
+        len = sizeof(cliaddr); // len is value/resuslt
+
+        n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *)&cliaddr, &len);
+        buffer[n] = '\0';
+        printf("Client : %s\n", buffer);
+        char *toggled = toggle(buffer);
+        sendto(sockfd, buffer, strlen(buffer), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+        printf("Hello message sent.\n");
     }
+
     return 0;
 }
